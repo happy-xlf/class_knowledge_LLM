@@ -17,7 +17,7 @@
 ## 环境要求
 
 - Python 3.8+
-- Neo4j 数据库
+- Neo4j 数据库 == 5.27.0
 - 其他依赖见 requirements.txt
 
 ## 安装步骤
@@ -55,7 +55,7 @@ python create_neo4j_database.py
 python app.py
 ```
 
-应用将在 http://localhost:5000 启动。
+应用将在 http://localhost:7474 启动。
 
 ## 功能特性
 
