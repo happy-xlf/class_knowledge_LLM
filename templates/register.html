@@ -28,6 +28,15 @@
 <body>
     <div class="register-box">
         <h2 class="register-title">用户注册</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="layui-alert layui-alert-{{ 'success' if category == 'success' else 'danger' }}" style="margin-bottom: 20px;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <form class="layui-form" action="{{ url_for('register') }}" method="post">
             <div class="layui-form-item">
                 <label class="layui-form-label">用户名</label>
@@ -45,6 +54,12 @@
                 <label class="layui-form-label">确认密码</label>
                 <div class="layui-input-block">
                     <input type="password" name="confirm_password" required lay-verify="required" placeholder="请再次输入密码" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">邮箱</label>
+                <div class="layui-input-block">
+                    <input type="email" name="email" lay-verify="email" placeholder="请输入邮箱（选填）" autocomplete="off" class="layui-input">
                 </div>
             </div>
             <div class="layui-form-item">
