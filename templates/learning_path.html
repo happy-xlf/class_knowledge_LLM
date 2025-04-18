@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>学习路径</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../static/lib/layui/css/layui.css" rel="stylesheet">
+  <script src="../static/lib/layui/layui.js" charset="utf-8"></script>
+  <script type="text/javascript" src="../static/js/xadmin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    #knowledgeGraph {
+      width: 100%;
+      height: 500px;
+    }
+  </style>
+</head>
+<body>
+<div style="padding: 16px;">
+  <!-- 学生信息卡片 -->
+  <div class="layui-card">
+    <div class="layui-card-header">学生信息</div>
+    <div class="layui-card-body">
+      <div class="layui-form">
+        <div class="layui-form-item">
+          <label class="layui-form-label">姓名</label>
+          <div class="layui-input-block">
+            <input type="text" id="studentName" class="layui-input" readonly>
+          </div>
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label">学号</label>
+          <div class="layui-input-block">
+            <input type="text" id="studentId" class="layui-input" readonly>
+          </div>
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label">已掌握知识点</label>
+          <div class="layui-input-block">
+            <textarea id="masteredKnowledge" class="layui-textarea" readonly></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 知识点关系图 -->
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">知识点关系图</div>
+    <div class="layui-card-body">
+      <div id="knowledgeGraph"></div>
+    </div>
+  </div>
+
+  <!-- 学习路径展示区域 -->
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">学习路径</div>
+    <div class="layui-card-body">
+      <div id="learningPath" style="min-height: 300px;">
+        <!-- 学习路径将通过JavaScript动态生成 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+layui.use(['element', 'layer'], function(){
+  var element = layui.element;
+  var layer = layui.layer;
+  var $ = layui.jquery;
+  
+  // 初始化ECharts实例
+  var myChart = echarts.init(document.getElementById('knowledgeGraph'));
+  
+  // 获取URL参数中的学生ID
+  function getUrlParam(name) {
+    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+    var r = window.location.search.substr(1).match(reg);
+    if (r != null) return decodeURI(r[2]); return null;
+  }
+  
+  // 获取学生信息
+  var studentId = getUrlParam('student_id');
+  if (studentId) {
+    // 获取指定学生的信息
+    $.ajax({
+      url: '/api/get_student_detail',
+      type: 'GET',
+      data: { student_id: studentId },
+      success: function(res) {
+        if(res.code === 0) {
+          var student = res.data;
+          // 填充学生信息
+          $('#studentName').val(student.name);
+          $('#studentId').val(student.student_id);
+          $('#masteredKnowledge').val(student.mastered_knowledge);
+          
+          // 获取知识点关系图
+          $.ajax({
+            url: '/api/get_knowledge_graph',
+            type: 'GET',
+            data: { student_id: studentId },
+            success: function(graphRes) {
+              if(graphRes.code === 0) {
+                drawKnowledgeGraph(graphRes.data);
+              } else {
+                layer.msg(graphRes.msg || '获取知识点关系图失败', {icon: 2});
+              }
+            },
+            error: function() {
+              layer.msg('获取知识点关系图失败，请稍后重试', {icon: 2});
+            }
+          });
+          
+          // 获取学习路径
+          $.ajax({
+            url: '/api/get_learning_path',
+            type: 'GET',
+            data: { student_id: studentId },
+            success: function(pathRes) {
+              if(pathRes.code === 0) {
+                // 生成学习路径展示
+                var pathHtml = '<div class="layui-timeline">';
+                pathRes.data.forEach(function(item, index) {
+                  pathHtml += `
+                    <li class="layui-timeline-item">
+                      <i class="layui-icon layui-timeline-axis">&#xe63f;</i>
+                      <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">第${index + 1}步</h3>
+                        <p>${item}</p>
+                      </div>
+                    </li>
+                  `;
+                });
+                pathHtml += '</div>';
+                $('#learningPath').html(pathHtml);
+              } else {
+                layer.msg(pathRes.msg || '获取学习路径失败', {icon: 2});
+              }
+            },
+            error: function() {
+              layer.msg('获取学习路径失败，请稍后重试', {icon: 2});
+            }
+          });
+        } else {
+          layer.msg(res.msg || '获取学生信息失败', {icon: 2});
+        }
+      },
+      error: function() {
+        layer.msg('获取学生信息失败，请稍后重试', {icon: 2});
+      }
+    });
+  } else {
+    // 如果没有指定学生ID，获取第一个学生的信息
+    $.ajax({
+      url: '/api/student_data',
+      type: 'GET',
+      data: { course_id: '1' },
+      success: function(res) {
+        if(res.code === 0 && res.data.length > 0) {
+          var student = res.data[0];
+          // 填充学生信息
+          $('#studentName').val(student.name);
+          $('#studentId').val(student.student_id);
+          $('#masteredKnowledge').val(student.mastered_knowledge);
+          
+          // 获取知识点关系图
+          $.ajax({
+            url: '/api/get_knowledge_graph',
+            type: 'GET',
+            data: { student_id: student.student_id },
+            success: function(graphRes) {
+              if(graphRes.code === 0) {
+                drawKnowledgeGraph(graphRes.data);
+              } else {
+                layer.msg(graphRes.msg || '获取知识点关系图失败', {icon: 2});
+              }
+            },
+            error: function() {
+              layer.msg('获取知识点关系图失败，请稍后重试', {icon: 2});
+            }
+          });
+          
+          // 获取学习路径
+          $.ajax({
+            url: '/api/get_learning_path',
+            type: 'GET',
+            data: { student_id: student.student_id },
+            success: function(pathRes) {
+              if(pathRes.code === 0) {
+                // 生成学习路径展示
+                var pathHtml = '<div class="layui-timeline">';
+                pathRes.data.forEach(function(item, index) {
+                  pathHtml += `
+                    <li class="layui-timeline-item">
+                      <i class="layui-icon layui-timeline-axis">&#xe63f;</i>
+                      <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">第${index + 1}步</h3>
+                        <p>${item}</p>
+                      </div>
+                    </li>
+                  `;
+                });
+                pathHtml += '</div>';
+                $('#learningPath').html(pathHtml);
+              } else {
+                layer.msg(pathRes.msg || '获取学习路径失败', {icon: 2});
+              }
+            },
+            error: function() {
+              layer.msg('获取学习路径失败，请稍后重试', {icon: 2});
+            }
+          });
+        } else {
+          layer.msg('获取学生信息失败', {icon: 2});
+        }
+      },
+      error: function() {
+        layer.msg('获取学生信息失败，请稍后重试', {icon: 2});
+      }
+    });
+  }
+  
+  // 绘制知识点关系图
+  function drawKnowledgeGraph(data) {
+    // 准备节点数据
+    var nodes = data.nodes.map(function(node) {
+      return {
+        id: node.id,
+        name: node.name,
+        category: node.mastered ? 0 : 1,  // 0表示已掌握，1表示未掌握
+        symbolSize: node.mastered ? 50 : 30,
+        label: {
+          show: true,
+          position: 'right'
+        }
+      };
+    });
+    
+    // 准备边数据
+    var edges = data.links.map(function(link) {
+      return {
+        source: link.source,
+        target: link.target,
+        label: {
+          show: true,
+          formatter: link.type
+        },
+        lineStyle: {
+          width: 2,
+          curveness: 0.3
+        }
+      };
+    });
+    
+    // 配置图表选项
+    var option = {
+      title: {
+        text: '知识点关系图',
+        top: 'top',
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: function(params) {
+          if (params.dataType === 'node') {
+            return params.data.name + (params.data.category === 0 ? '（已掌握）' : '（未掌握）');
+          } else {
+            return params.data.label.formatter;
+          }
+        }
+      },
+      legend: {
+        data: ['已掌握', '未掌握'],
+        top: 30
+      },
+      animationDuration: 1500,
+      animationEasingUpdate: 'quinticInOut',
+      series: [{
+        type: 'graph',
+        layout: 'force',
+        data: nodes,
+        links: edges,
+        categories: [
+          { 
+            name: '已掌握',
+            itemStyle: {
+              color: '#5FB878'
+            }
+          },
+          { 
+            name: '未掌握',
+            itemStyle: {
+              color: '#1E9FFF'
+            }
+          }
+        ],
+        roam: true,
+        label: {
+          show: true,
+          position: 'right'
+        },
+        force: {
+          repulsion: 100,
+          edgeLength: 100
+        },
+        emphasis: {
+          focus: 'adjacency',
+          lineStyle: {
+            width: 10
+          }
+        }
+      }]
+    };
+    
+    // 使用配置项设置图表
+    myChart.setOption(option);
+    
+    // 监听窗口大小变化，调整图表大小
+    window.addEventListener('resize', function() {
+      myChart.resize();
+    });
+  }
+});
+</script>
+</body>
+</html> 
