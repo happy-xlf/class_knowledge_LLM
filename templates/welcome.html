@@ -11,6 +11,8 @@
         <script src="../static/lib/layui/layui.js" charset="utf-8"></script>
         <script type="text/javascript" src="../static/js/xadmin.js"></script>
         <script type="text/javascript" src="../static/js/template/welcome.js"></script>
+        <!-- 引入Echarts -->
+        <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
         <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
         <!--[if lt IE 9]>
           <script src="https://cdn.staticfile.org/html5shiv/r29/html5.min.js"></script>
@@ -27,6 +29,38 @@
             -webkit-box-orient: vertical;
             -webkit-line-clamp:6
         }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-title {
+            font-size: 16px;
+            color: #666;
+        }
+        .bg-blue {
+            background-color: #1E9FFF;
+            color: white;
+        }
+        .bg-green {
+            background-color: #009688;
+            color: white;
+        }
+        .bg-orange {
+            background-color: #FFB800;
+            color: white;
+        }
+        #courseChart {
+            width: 100%;
+            height: 400px;
+        }
     </style>
     <body>
         <div class="layui-fluid">
@@ -40,54 +74,158 @@
                         </div>
                     </div>
                 </div>
-                <div class="layui-col-md12">
+                
+                <!-- 统计卡片 -->
+                <div class="layui-col-md4">
                     <div class="layui-card">
-                        <div class="layui-card-header">诗词信息</div>
-                        <div class="layui-card-body ">
-                            <ul id="poem_sum" class="layui-row layui-col-space10 layui-this x-admin-carousel x-admin-backlog">
-                                <!-- welcome.js中动态生成 -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="layui-col-md12">
-                    <div class="layui-card">
-                        <div class="layui-card-header">诗人信息</div>
-                        <div class="layui-card-body ">
-                            <ul id="poemer_sum" class="layui-row layui-col-space10 layui-this x-admin-carousel x-admin-backlog">
-                                <!-- welcome.js中动态生成 -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="layui-col-md12">
-                    <div class="layui-card">
-                        <div class="layui-tab layui-tab-brief" lay-filter="docDemoTabBrief">
-                              <ul class="layui-tab-title">
-                                <li class="layui-this">唐代</li>
-                                <li>宋代</li>
-                                <li>元代</li>
-                                <li>明代</li>
-                                <li>清代</li>
-                              </ul>
-                              <div class="layui-tab-content" style="height: auto;">
-                                  <div id="pomer_tab" class="layui-tab-item layui-show">
-
-                                  </div>
+                        <div class="layui-card-body">
+                            <div class="stat-card bg-blue">
+                                <div class="stat-title">总学生数量</div>
+                                <div class="stat-number" id="totalStudents">0</div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-
+                
+                <div class="layui-col-md4">
+                    <div class="layui-card">
+                        <div class="layui-card-body">
+                            <div class="stat-card bg-green">
+                                <div class="stat-title">总课程数量</div>
+                                <div class="stat-number" id="totalCourses">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="layui-col-md4">
+                    <div class="layui-card">
+                        <div class="layui-card-body">
+                            <div class="stat-card bg-orange">
+                                <div class="stat-title">平均每课程学生数</div>
+                                <div class="stat-number" id="avgStudents">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 课程学生数量柱状图 -->
+                <div class="layui-col-md12">
+                    <div class="layui-card">
+                        <div class="layui-card-header">各课程学生数量分布</div>
+                        <div class="layui-card-body">
+                            <div id="courseChart"></div>
+                        </div>
+                    </div>
+                </div>
+                
+            
                 <style id="welcome_style"></style>
                 <div class="layui-col-md12">
                         <blockquote class="layui-elem-quote layui-quote-nm">本系统所有权归XXX所有</blockquote></div>
                 </div>
             </div>
         </div>
-        </div>
+        
+        <script>
+            // 获取统计数据并展示
+            function loadStatistics() {
+                $.ajax({
+                    url: '/api/get_statistics',
+                    type: 'GET',
+                    success: function(res) {
+                        if (res.code === 0) {
+                            const data = res.data;
+                            
+                            // 更新统计数字
+                            $('#totalStudents').text(data.total_students);
+                            $('#totalCourses').text(data.total_courses);
+                            
+                            // 计算平均每课程学生数
+                            const avgStudents = data.total_courses > 0 
+                                ? Math.round(data.total_students / data.total_courses) 
+                                : 0;
+                            $('#avgStudents').text(avgStudents);
+                            
+                            // 准备图表数据
+                            const courseNames = [];
+                            const studentCounts = [];
+                            
+                            data.course_stats.forEach(function(item) {
+                                courseNames.push(item.course_name);
+                                studentCounts.push(item.count);
+                            });
+                            
+                            // 初始化Echarts图表
+                            initChart(courseNames, studentCounts);
+                        } else {
+                            layer.msg('获取统计数据失败: ' + res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('获取统计数据失败，请检查网络连接');
+                    }
+                });
+            }
+            
+            // 初始化Echarts图表
+            function initChart(courseNames, studentCounts) {
+                const chartDom = document.getElementById('courseChart');
+                const myChart = echarts.init(chartDom);
+                
+                const option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        }
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: courseNames,
+                        axisTick: {
+                            alignWithLabel: true
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '学生数量'
+                    },
+                    series: [
+                        {
+                            name: '学生数量',
+                            type: 'bar',
+                            barWidth: '60%',
+                            data: studentCounts,
+                            itemStyle: {
+                                color: function(params) {
+                                    // 为不同课程设置不同颜色
+                                    const colorList = ['#1E9FFF', '#009688', '#FFB800'];
+                                    return colorList[params.dataIndex % colorList.length];
+                                }
+                            }
+                        }
+                    ]
+                };
+                
+                myChart.setOption(option);
+                
+                // 响应窗口大小变化
+                window.addEventListener('resize', function() {
+                    myChart.resize();
+                });
+            }
+            
+            // 页面加载完成后执行
+            $(document).ready(function() {
+                loadStatistics();
+            });
+        </script>
     </body>
 </html>

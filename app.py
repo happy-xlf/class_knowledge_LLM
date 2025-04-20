@@ -1,7 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, stream_with_context, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from utils.mysqlhelper import MySqLHelper
 from py2neo import Node, Graph, Relationship, NodeMatcher
+import json
+import time
+import requests
+import markdown
+import pdfkit
+import os
+import tempfile
 
 graph = Graph("neo4j://localhost:7687", auth=("neo4j","fengge666"))
 app = Flask(__name__)
@@ -494,5 +501,245 @@ def get_knowledge_graph():
     except Exception as e:
         return jsonify({'code': 500, 'msg': f'获取知识点关系图失败: {str(e)}'})
 
+@app.route('/api/get_statistics', methods=['GET'])
+def get_statistics():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        # 获取总学生数量
+        sql_total = "SELECT COUNT(*) FROM student"
+        result_total = db.selectone(sql_total)
+        total_students = result_total[0] if result_total else 0
+        
+        # 获取各课程学生数量
+        course_stats = []
+        for course_id, course_name in COURSES.items():
+            sql_course = "SELECT COUNT(*) FROM student WHERE course_name = %s"
+            result_course = db.selectone(sql_course, (course_name,))
+            count = result_course[0] if result_course else 0
+            course_stats.append({
+                'course_id': course_id,
+                'course_name': course_name,
+                'count': count
+            })
+        
+        return jsonify({
+            'code': 0,
+            'msg': '',
+            'data': {
+                'total_students': total_students,
+                'total_courses': len(COURSES),
+                'course_stats': course_stats
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'code': 500,
+            'msg': f'获取统计数据失败: {str(e)}',
+            'data': {
+                'total_students': 0,
+                'total_courses': 0,
+                'course_stats': []
+            }
+        })
+
+# 教学方案生成API
+@app.route('/api/generate_teaching_plan', methods=['POST'])
+def generate_teaching_plan():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        data = request.get_json()
+        course_id = data.get('course')
+        keywords = data.get('keywords')
+        content = data.get('content')
+        
+        if not course_id or not keywords:
+            return jsonify({'code': 400, 'msg': '缺少必要参数'})
+        
+        # 获取课程名称
+        course_name = COURSES.get(course_id, '未知课程')
+        
+        # 构建提示词
+        prompt = f"""
+        你是一位专业的教育专家，请根据以下信息生成一份详细的教学方案：
+        
+        课程：{course_name}
+        关键词：{keywords}
+        
+        教案文本：
+        {content}
+        
+        请生成一份包含以下内容的教学方案：
+        1. 教学目标
+        2. 教学重点和难点
+        3. 教学过程（包括导入、讲解、练习、总结等环节）
+        4. 教学资源
+        5. 教学评价
+        
+        请确保教学方案详细、实用，并符合教育规律。
+        """
+        
+        # 调用DeepSeek API进行流式生成
+        # 注意：这里使用的是模拟的流式响应，实际使用时需要替换为真实的API调用
+        def generate():
+            # 模拟流式响应
+            response_text = f"""
+            # {course_name}教学方案
+            
+            ## 教学目标
+            通过本课程的学习，学生将掌握{keywords}相关的核心概念和基本原理，能够运用所学知识解决实际问题。
+            
+            ## 教学重点和难点
+            - 重点：{keywords.split('，')[0]}的基本原理和应用
+            - 难点：{keywords.split('，')[1] if '，' in keywords else '相关知识的综合运用'}
+            
+            ## 教学过程
+            
+            ### 1. 导入环节（10分钟）
+            通过提问或案例引入，激发学生的学习兴趣，引导学生思考{keywords.split('，')[0]}的重要性。
+            
+            ### 2. 讲解环节（30分钟）
+            详细讲解{keywords}的基本概念、原理和应用，结合实例进行说明。
+            
+            ### 3. 练习环节（20分钟）
+            提供相关练习题，让学生巩固所学知识，加深理解。
+            
+            ### 4. 总结环节（10分钟）
+            总结本节课的重点内容，强调{keywords.split('，')[0]}的重要性，布置课后作业。
+            
+            ## 教学资源
+            - 教材：{course_name}教材
+            - 多媒体：PPT课件、相关视频
+            - 实验环境：计算机实验室
+            
+            ## 教学评价
+            - 课堂表现：参与度、回答问题的准确性
+            - 作业完成情况：课后作业的完成质量和及时性
+            - 测试成绩：单元测试和期末考试的成绩
+            """
+            
+            # 模拟流式输出
+            for i in range(0, len(response_text), 5):
+                yield response_text[i:i+5]
+                time.sleep(0.05)  # 模拟延迟
+        
+        # 返回流式响应
+        return Response(stream_with_context(generate()), content_type='text/plain')
+        
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'生成教学方案失败: {str(e)}'})
+
+# 导出PDF API
+@app.route('/api/export_pdf', methods=['POST'])
+def export_pdf():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        data = request.get_json()
+        markdown_content = data.get('content')
+        course_name = data.get('course_name', '教学方案')
+        
+        if not markdown_content:
+            return jsonify({'code': 400, 'msg': '缺少内容参数'})
+        
+        # 将Markdown转换为HTML
+        html_content = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code', 'codehilite'])
+        
+        # 添加CSS样式
+        html_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{course_name}</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 40px;
+                }}
+                h1 {{
+                    color: #333;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 10px;
+                }}
+                h2 {{
+                    color: #444;
+                    margin-top: 20px;
+                }}
+                h3 {{
+                    color: #555;
+                }}
+                code {{
+                    background-color: #f5f5f5;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                }}
+                pre {{
+                    background-color: #f5f5f5;
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 20px 0;
+                }}
+                th, td {{
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }}
+                th {{
+                    background-color: #f2f2f2;
+                }}
+                blockquote {{
+                    border-left: 4px solid #ddd;
+                    padding-left: 10px;
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>{course_name}</h1>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # 创建临时文件
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        # 配置pdfkit选项
+        options = {
+            'page-size': 'A4',
+            'margin-top': '20mm',
+            'margin-right': '20mm',
+            'margin-bottom': '20mm',
+            'margin-left': '20mm',
+            'encoding': 'UTF-8',
+            'no-outline': None
+        }
+        
+        # 生成PDF
+        pdfkit.from_string(html_template, temp_path, options=options)
+        
+        # 返回PDF文件
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=f"{course_name}_{time.strftime('%Y%m%d')}.pdf",
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'生成PDF失败: {str(e)}'})
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, host='0.0.0.0', port=5999) 

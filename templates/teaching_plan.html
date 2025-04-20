@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>教学方案生成</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 预加载关键资源 -->
+  <link rel="preload" href="../static/lib/layui/css/layui.css" as="style">
+  <link rel="preload" href="../static/lib/layui/layui.js" as="script">
+  <link rel="preload" href="../static/js/xadmin.js" as="script">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/marked/marked.min.js" as="script">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css" as="style">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js" as="script">
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
+  
+  <!-- 样式表 -->
+  <link href="../static/lib/layui/css/layui.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+  <link rel="stylesheet" href="../static/css/teaching_plan.css">
+  
+  <!-- 异步加载非关键JavaScript -->
+  <script src="../static/lib/layui/layui.js" defer></script>
+  <script src="../static/js/xadmin.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+  <script src="../static/js/teaching_plan.js" defer></script>
+</head>
+<body>
+<div style="padding: 16px;">
+  <!-- 教学方案生成表单 -->
+  <div class="layui-card">
+    <div class="layui-card-header">教学方案生成</div>
+    <div class="layui-card-body">
+      <form class="layui-form" id="teachingPlanForm">
+        <div class="layui-form-item">
+          <label class="layui-form-label">课程选择</label>
+          <div class="layui-input-block">
+            <select name="course" lay-verify="required" id="courseSelect">
+              <option value="">请选择课程</option>
+              <option value="1">计算机基础</option>
+              <option value="2">数据结构</option>
+              <option value="3">算法分析</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="layui-form-item">
+          <label class="layui-form-label">关键词</label>
+          <div class="layui-input-block">
+            <input type="text" name="keywords" required lay-verify="required" placeholder="请输入关键词，多个关键词用逗号分隔" autocomplete="off" class="layui-input" id="keywordsInput">
+          </div>
+        </div>
+        
+        <div class="layui-form-item layui-form-text">
+          <label class="layui-form-label">教案文本</label>
+          <div class="layui-input-block">
+            <textarea name="content" placeholder="请输入教案文本内容" class="layui-textarea" id="contentTextarea"></textarea>
+          </div>
+        </div>
+        
+        <div class="layui-form-item">
+          <div class="layui-input-block">
+            <button class="layui-btn" lay-submit lay-filter="generatePlan">生成教学方案</button>
+            <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 对话展示区域 -->
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">
+      对话结果
+      <button class="layui-btn layui-btn-sm" style="float: right;" id="exportPDF">
+        <i class="layui-icon">&#xe67d;</i>导出PDF
+      </button>
+    </div>
+    <div class="layui-card-body">
+      <div class="chat-container" id="chatContainer">
+        <!-- 对话内容将通过JavaScript动态生成 -->
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html> 

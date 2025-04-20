@@ -21,6 +21,11 @@
     </ul>
     <div class="layui-tab-content">
       <div class="layui-tab-item layui-show">
+        <!-- 添加工具栏 -->
+        <div class="layui-btn-container" style="margin-bottom: 10px; display: none;">
+          <button class="layui-btn layui-btn-sm" id="exportExcel">导出Excel</button>
+          <button class="layui-btn layui-btn-sm" id="printTable">打印表格</button>
+        </div>
         <table id="studentTable" lay-filter="studentTable"></table>
       </div>
     </div>
@@ -92,11 +97,12 @@
 </script>
 
 <script>
-layui.use(['table', 'element', 'form'], function(){
+layui.use(['table', 'element', 'form', 'util'], function(){
   var table = layui.table;
   var element = layui.element;
   var form = layui.form;
   var layer = layui.layer;
+  var util = layui.util;
   
   // 表格配置
   var tableConfig = {
@@ -112,19 +118,29 @@ layui.use(['table', 'element', 'form'], function(){
       {field:'mastered_knowledge', title: '已掌握知识点', width:500},
       {fixed: 'right', title:'操作', toolbar: '#rowToolbar'}
     ]],
-    page: true
+    page: true,
+    toolbar: '#toolbarDemo', // 开启自定义工具栏
+    defaultToolbar: ['filter', 'exports', 'print', { // 自定义工具栏
+      title: '导出Excel',
+      layEvent: 'EXPORT_EXCEL',
+      icon: 'layui-icon-export'
+    }, {
+      title: '打印表格',
+      layEvent: 'PRINT_TABLE',
+      icon: 'layui-icon-print'
+    }]
   };
   
   // 渲染表格
-  table.render(tableConfig);
+  var tableIns = table.render(tableConfig);
 
   // 监听行工具事件
   table.on('tool(studentTable)', function(obj){
     var data = obj.data;
     switch(obj.event){
       case 'generatePath':
-        // 在本窗口内打开学习路径tab页
-        xadmin.open('学习路径', '/learning_path?student_id=' + data.student_id);
+        // 使用xadmin.add_tab_f()方法打开学习路径页面，并在添加标签页后强制刷新页面
+        parent.xadmin.add_tab_f('学习路径', '/learning_path?student_id=' + data.student_id, true);
         break;
       case 'edit':
         // 先获取学习风格和课程选项
@@ -255,6 +271,109 @@ layui.use(['table', 'element', 'form'], function(){
     table.reload('studentTable', {
       url: '/api/student_data?course_id=' + courseId
     });
+  });
+  
+  // 监听工具栏事件
+  table.on('toolbar(studentTable)', function(obj){
+    var checkStatus = table.checkStatus(obj.config.id);
+    var data = checkStatus.data;
+    
+    switch(obj.event){
+      case 'EXPORT_EXCEL':
+        // 导出Excel
+        var courseName = $('.layui-tab-title .layui-this').text();
+        var exportData = [];
+        
+        // 获取当前页数据
+        var currentData = table.cache['studentTable'];
+        if(currentData && currentData.length > 0) {
+          exportData = currentData;
+        } else {
+          // 如果没有当前页数据，则获取所有数据
+          $.ajax({
+            url: '/api/student_data',
+            type: 'GET',
+            async: false,
+            success: function(res) {
+              if(res.code === 0 && res.data) {
+                exportData = res.data;
+              }
+            }
+          });
+        }
+        
+        // 准备Excel数据
+        var excelData = [];
+        var headers = ['学号', '姓名', '性别', '学习风格', '已掌握知识点'];
+        excelData.push(headers);
+        
+        exportData.forEach(function(item) {
+          excelData.push([
+            item.student_id,
+            item.name,
+            item.gender,
+            item.learning_style,
+            item.mastered_knowledge
+          ]);
+        });
+        
+        // 使用Layui的导出功能
+        util.exportExcel(excelData, courseName + '学生信息表', 'xls');
+        break;
+      case 'PRINT_TABLE':
+        // 打印表格
+        var courseName = $('.layui-tab-title .layui-this').text();
+        var printContent = '<div style="text-align:center;font-size:20px;margin-bottom:20px;">' + courseName + '学生信息表</div>';
+        printContent += '<table border="1" cellspacing="0" cellpadding="5" style="width:100%;border-collapse:collapse;">';
+        
+        // 表头
+        printContent += '<tr style="background-color:#f2f2f2;">';
+        printContent += '<th>学号</th>';
+        printContent += '<th>姓名</th>';
+        printContent += '<th>性别</th>';
+        printContent += '<th>学习风格</th>';
+        printContent += '<th>已掌握知识点</th>';
+        printContent += '</tr>';
+        
+        // 获取当前页数据
+        var currentData = table.cache['studentTable'];
+        if(currentData && currentData.length > 0) {
+          currentData.forEach(function(item) {
+            printContent += '<tr>';
+            printContent += '<td>' + item.student_id + '</td>';
+            printContent += '<td>' + item.name + '</td>';
+            printContent += '<td>' + item.gender + '</td>';
+            printContent += '<td>' + item.learning_style + '</td>';
+            printContent += '<td>' + item.mastered_knowledge + '</td>';
+            printContent += '</tr>';
+          });
+        }
+        
+        printContent += '</table>';
+        
+        // 创建打印窗口
+        var printWindow = window.open('', '_blank');
+        printWindow.document.write('<html><head><title>' + courseName + '学生信息表</title>');
+        printWindow.document.write('<style>body{font-family:Arial,sans-serif;}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(printContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+        break;
+    };
+  });
+  
+  // 绑定导出Excel按钮事件
+  $('#exportExcel').on('click', function(){
+    // 触发工具栏的导出Excel事件
+    $('.layui-table-tool .layui-table-tool-temp .layui-icon-export').click();
+  });
+  
+  // 绑定打印表格按钮事件
+  $('#printTable').on('click', function(){
+    // 触发工具栏的打印表格事件
+    $('.layui-table-tool .layui-table-tool-temp .layui-icon-print').click();
   });
 });
 </script>

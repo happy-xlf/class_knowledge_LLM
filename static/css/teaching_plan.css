@@ -1,0 +1,195 @@
+.chat-container {
+  height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #f9f9f9;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.message {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  position: relative;
+  max-width: 85%;
+}
+
+.user-message {
+  background-color: #e1f3ff;
+  margin-left: auto;
+  border-bottom-right-radius: 0;
+}
+
+.assistant-message {
+  background-color: #ffffff;
+  margin-right: auto;
+  border-bottom-left-radius: 0;
+  border-left: 4px solid #1E9FFF;
+}
+
+.message strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 14px;
+}
+
+.user-message strong {
+  color: #1E9FFF;
+}
+
+.assistant-message strong {
+  color: #009688;
+}
+
+.typing-indicator {
+  display: inline-block;
+  margin-left: 5px;
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #909399;
+  border-radius: 50%;
+  margin-right: 3px;
+  animation: typing 1s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Markdown样式 */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  color: #333;
+}
+
+.markdown-body h1 {
+  font-size: 1.8em;
+  margin: 0.67em 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #eaecef;
+  color: #1E9FFF;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #eaecef;
+  color: #009688;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #5FB878;
+}
+
+.markdown-body ul, .markdown-body ol {
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body li {
+  margin-top: 0.25em;
+}
+
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(27,31,35,0.05);
+  border-radius: 3px;
+  font-family: "SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+
+.markdown-body pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: #f6f8fa;
+  border-radius: 3px;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  margin: 0;
+  font-size: 100%;
+  word-break: normal;
+  white-space: pre;
+  background: transparent;
+  border: 0;
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+  margin: 0 0 16px 0;
+}
+
+.markdown-body table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.markdown-body table tr {
+  background-color: #fff;
+  border-top: 1px solid #c6cbd1;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+/* 导出按钮样式 */
+.export-buttons {
+  margin-top: 10px;
+  text-align: right;
+} 
