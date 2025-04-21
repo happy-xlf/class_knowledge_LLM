@@ -24,32 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
       xhtml: false
     });
     
-    // 导出PDF功能
-    $('#exportPDF').on('click', function() {
-      var element = document.getElementById('chatContainer');
-      var opt = {
-        margin: 1,
-        filename: '教学方案.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
-
-      // 显示加载提示
-      layer.load(1, {
-        shade: [0.1,'#fff']
-      });
-
-      // 生成PDF
-      html2pdf().set(opt).from(element).save().then(function() {
-        layer.closeAll('loading');
-        layer.msg('PDF导出成功');
-      }).catch(function(err) {
-        layer.closeAll('loading');
-        layer.msg('PDF导出失败：' + err.message);
-      });
-    });
-    
     // 监听表单提交
     form.on('submit(generatePlan)', function(data){
       // 显示加载中
@@ -123,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 添加导出按钮
             var exportButtons = $('<div class="export-buttons"></div>');
             exportButtons.append('<button class="layui-btn layui-btn-sm" onclick="exportMarkdown()">导出Markdown</button>');
-            exportButtons.append('<button class="layui-btn layui-btn-sm layui-btn-normal" onclick="exportPDF()">导出PDF</button>');
+            // exportButtons.append('<button class="layui-btn layui-btn-sm layui-btn-normal" onclick="exportPDF()">导出PDF</button>');
             $('#assistantResponse').append(exportButtons);
             
             // 滚动到底部

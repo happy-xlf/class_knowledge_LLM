@@ -14,6 +14,16 @@ graph = Graph("neo4j://localhost:7687", auth=("neo4j","fengge666"))
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # 用于session加密
 
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    # 从环境变量中读取您的方舟API Key
+    # api_key=os.environ.get("ARK_API_KEY"), 
+    api_key="c3f394f3-a632-4a2b-baa9-8d63e38856ac",
+    base_url="https://ark.cn-beijing.volces.com/api/v3",
+)
+
 # 定义课程ID映射
 COURSES = {
     '1': '计算机基础',
@@ -585,47 +595,20 @@ def generate_teaching_plan():
         # 调用DeepSeek API进行流式生成
         # 注意：这里使用的是模拟的流式响应，实际使用时需要替换为真实的API调用
         def generate():
-            # 模拟流式响应
-            response_text = f"""
-            # {course_name}教学方案
-            
-            ## 教学目标
-            通过本课程的学习，学生将掌握{keywords}相关的核心概念和基本原理，能够运用所学知识解决实际问题。
-            
-            ## 教学重点和难点
-            - 重点：{keywords.split('，')[0]}的基本原理和应用
-            - 难点：{keywords.split('，')[1] if '，' in keywords else '相关知识的综合运用'}
-            
-            ## 教学过程
-            
-            ### 1. 导入环节（10分钟）
-            通过提问或案例引入，激发学生的学习兴趣，引导学生思考{keywords.split('，')[0]}的重要性。
-            
-            ### 2. 讲解环节（30分钟）
-            详细讲解{keywords}的基本概念、原理和应用，结合实例进行说明。
-            
-            ### 3. 练习环节（20分钟）
-            提供相关练习题，让学生巩固所学知识，加深理解。
-            
-            ### 4. 总结环节（10分钟）
-            总结本节课的重点内容，强调{keywords.split('，')[0]}的重要性，布置课后作业。
-            
-            ## 教学资源
-            - 教材：{course_name}教材
-            - 多媒体：PPT课件、相关视频
-            - 实验环境：计算机实验室
-            
-            ## 教学评价
-            - 课堂表现：参与度、回答问题的准确性
-            - 作业完成情况：课后作业的完成质量和及时性
-            - 测试成绩：单元测试和期末考试的成绩
-            """
-            
-            # 模拟流式输出
-            for i in range(0, len(response_text), 5):
-                yield response_text[i:i+5]
-                time.sleep(0.05)  # 模拟延迟
-        
+
+            stream = client.chat.completions.create(
+                # 将推理接入点 <Model>替换为 Model ID
+                model="doubao-pro-32k-241215",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True
+            )
+            # print(completion.choices[0].message)
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                yield chunk.choices[0].delta.content
         # 返回流式响应
         return Response(stream_with_context(generate()), content_type='text/plain')
         
