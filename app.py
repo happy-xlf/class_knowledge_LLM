@@ -19,8 +19,7 @@ from openai import OpenAI
 
 client = OpenAI(
     # 从环境变量中读取您的方舟API Key
-    # api_key=os.environ.get("ARK_API_KEY"), 
-    api_key="c3f394f3-a632-4a2b-baa9-8d63e38856ac",
+    api_key=os.environ.get("API_KEY"), 
     base_url="https://ark.cn-beijing.volces.com/api/v3",
 )
 
