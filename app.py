@@ -150,16 +150,14 @@ def get_student_data():
     if 'username' not in session:
         return jsonify({'code': 401, 'msg': '未登录'})
     
-    course_id = request.args.get('course_id', '1')
-    if course_id not in COURSES:
-        return jsonify({'code': 400, 'msg': '无效的课程ID'})
-    
-    # 获取课程名称
-    course_name = COURSES[course_id]
+    course_name = request.args.get('course_id', '计算机基础')
     
     # 从数据库获取学生数据
     sql = """
-        SELECT student_id, name, gender, learning_style, mastered_knowledge 
+        SELECT 
+            student_id, name, gender, learning_style, 
+            homework_score, participation_score, unit_test1_score, unit_test2_score,
+            final_exam_score, total_score, mastered_knowledge, course_name
         FROM student 
         WHERE course_name = %s
     """
@@ -175,7 +173,14 @@ def get_student_data():
                 'name': row[1], 
                 'gender': row[2],
                 'learning_style': row[3],
-                'mastered_knowledge': row[4]
+                'homework_score': row[4],
+                'participation_score': row[5],
+                'unit_test1_score': row[6],
+                'unit_test2_score': row[7],
+                'final_exam_score': row[8],
+                'total_score': row[9],
+                'mastered_knowledge': row[10],
+                'course_name': row[11]
             })
         
         return jsonify({
@@ -268,7 +273,10 @@ def get_student_detail():
         
         # 查询学生详细信息
         sql = """
-            SELECT student_id, name, gender, learning_style, mastered_knowledge, course_name
+            SELECT 
+                student_id, name, gender, learning_style, 
+                homework_score, participation_score, unit_test1_score, unit_test2_score,
+                final_exam_score, total_score, mastered_knowledge, course_name
             FROM student 
             WHERE student_id = %s
         """
@@ -283,8 +291,14 @@ def get_student_detail():
                     'name': result[1],
                     'gender': result[2],
                     'learning_style': result[3],
-                    'mastered_knowledge': result[4],
-                    'course_name': result[5]
+                    'homework_score': result[4],
+                    'participation_score': result[5],
+                    'unit_test1_score': result[6],
+                    'unit_test2_score': result[7],
+                    'final_exam_score': result[8],
+                    'total_score': result[9],
+                    'mastered_knowledge': result[10],
+                    'course_name': result[11]
                 }
             })
         else:
@@ -316,6 +330,112 @@ def get_learning_styles():
             
     except Exception as e:
         return jsonify({'code': 500, 'msg': f'获取学习风格失败: {str(e)}'})
+
+# 获取不同学习风格的指标数据API
+@app.route('/api/get_learning_style_metrics', methods=['GET'])
+def get_learning_style_metrics():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        course_name = request.args.get('course_name', '计算机基础')
+        
+        # 查询所有不重复的学习风格
+        sql_styles = "SELECT DISTINCT learning_style FROM student WHERE learning_style IS NOT NULL AND course_name = %s"
+        styles_result, _ = db.selectall(sql_styles, (course_name,))
+        
+        if not styles_result:
+            return jsonify({'code': 404, 'msg': '未找到学习风格数据'})
+        
+        learning_styles = [row[0] for row in styles_result]
+        result_data = {}
+        
+        # 对每种学习风格计算指标
+        for style in learning_styles:
+            sql = """
+                SELECT 
+                    AVG(homework_score) as homework_avg,
+                    AVG(participation_score) as participation_avg,
+                    AVG(unit_test1_score) as unit_test1_avg,
+                    AVG(unit_test2_score) as unit_test2_avg,
+                    AVG(final_exam_score) as final_exam_avg,
+                    AVG(total_score) as total_avg
+                FROM student 
+                WHERE learning_style = %s AND course_name = %s
+            """
+            result = db.selectone(sql, (style, course_name))
+            
+            if result:
+                result_data[style] = {
+                    'homework_score': result[0] or 0,
+                    'participation_score': result[1] or 0,
+                    'unit_test1_score': result[2] or 0,
+                    'unit_test2_score': result[3] or 0,
+                    'final_exam_score': result[4] or 0,
+                    'total_score': result[5] or 0
+                }
+        
+        return jsonify({
+            'code': 0,
+            'msg': '',
+            'data': result_data
+        })
+            
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'获取学习风格指标数据失败: {str(e)}'})
+
+# 获取所有学习风格的指标数据API
+@app.route('/api/get_all_learning_style_metrics', methods=['GET'])
+def get_all_learning_style_metrics():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        # 查询所有不重复的学习风格
+        sql_styles = "SELECT DISTINCT learning_style FROM student WHERE learning_style IS NOT NULL"
+        styles_result, _ = db.selectall(sql_styles)
+        
+        if not styles_result:
+            return jsonify({'code': 404, 'msg': '未找到学习风格数据'})
+        
+        learning_styles = [row[0] for row in styles_result]
+        result_data = {}
+        
+        # 对每种学习风格计算指标
+        for style in learning_styles:
+            sql = """
+                SELECT 
+                    AVG(homework_score) as homework_avg,
+                    AVG(participation_score) as participation_avg,
+                    AVG(unit_test1_score) as unit_test1_avg,
+                    AVG(unit_test2_score) as unit_test2_avg,
+                    AVG(final_exam_score) as final_exam_avg,
+                    AVG(total_score) as total_avg,
+                    COUNT(*) as student_count
+                FROM student 
+                WHERE learning_style = %s
+            """
+            result = db.selectone(sql, (style,))
+            
+            if result:
+                result_data[style] = {
+                    'homework_score': result[0] or 0,
+                    'participation_score': result[1] or 0,
+                    'unit_test1_score': result[2] or 0,
+                    'unit_test2_score': result[3] or 0,
+                    'final_exam_score': result[4] or 0,
+                    'total_score': result[5] or 0,
+                    'student_count': result[6] or 0
+                }
+        
+        return jsonify({
+            'code': 0,
+            'msg': '',
+            'data': result_data
+        })
+            
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'获取所有学习风格指标数据失败: {str(e)}'})
 
 # 获取课程选项API
 @app.route('/api/get_courses', methods=['GET'])
@@ -723,6 +843,275 @@ def export_pdf():
         
     except Exception as e:
         return jsonify({'code': 500, 'msg': f'生成PDF失败: {str(e)}'})
+
+@app.route('/api/get_course_statistics', methods=['GET'])
+def get_course_statistics():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        course_name = request.args.get('course_name')
+        if not course_name:
+            return jsonify({'code': 400, 'msg': '缺少课程名称参数'})
+        
+        # 查询课程统计数据
+        sql = """
+            SELECT 
+                AVG(homework_score) as homework_avg,
+                AVG(participation_score) as participation_avg,
+                AVG(unit_test1_score) as unit_test1_avg,
+                AVG(unit_test2_score) as unit_test2_avg,
+                AVG(final_exam_score) as final_exam_avg,
+                AVG(total_score) as total_avg,
+                
+                MIN(homework_score) as homework_min,
+                MIN(participation_score) as participation_min,
+                MIN(unit_test1_score) as unit_test1_min,
+                MIN(unit_test2_score) as unit_test2_min,
+                MIN(final_exam_score) as final_exam_min,
+                MIN(total_score) as total_min,
+                
+                MAX(homework_score) as homework_max,
+                MAX(participation_score) as participation_max,
+                MAX(unit_test1_score) as unit_test1_max,
+                MAX(unit_test2_score) as unit_test2_max,
+                MAX(final_exam_score) as final_exam_max,
+                MAX(total_score) as total_max,
+                
+                STDDEV(homework_score) as homework_std,
+                STDDEV(participation_score) as participation_std,
+                STDDEV(unit_test1_score) as unit_test1_std,
+                STDDEV(unit_test2_score) as unit_test2_std,
+                STDDEV(final_exam_score) as final_exam_std,
+                STDDEV(total_score) as total_std
+            FROM student 
+            WHERE course_name = %s
+        """
+        result = db.selectone(sql, (course_name,))
+        
+        if not result:
+            return jsonify({'code': 404, 'msg': '未找到该课程数据'})
+        
+        # 计算中位数
+        median_sql = """
+            SELECT 
+                homework_score,
+                participation_score,
+                unit_test1_score,
+                unit_test2_score,
+                final_exam_score,
+                total_score
+            FROM student 
+            WHERE course_name = %s
+            ORDER BY homework_score, participation_score, unit_test1_score, 
+                     unit_test2_score, final_exam_score, total_score
+        """
+        median_result, count = db.selectall(median_sql, (course_name,))
+        
+        # 计算各指标的中位数
+        def calculate_median(data, index):
+            if not data or len(data) == 0:
+                return 0
+            sorted_data = sorted([row[index] for row in data if row[index] is not None])
+            if len(sorted_data) == 0:
+                return 0
+            mid = len(sorted_data) // 2
+            if len(sorted_data) % 2 == 0:
+                return (sorted_data[mid-1] + sorted_data[mid]) / 2
+            else:
+                return sorted_data[mid]
+        
+        homework_median = calculate_median(median_result, 0)
+        participation_median = calculate_median(median_result, 1)
+        unit_test1_median = calculate_median(median_result, 2)
+        unit_test2_median = calculate_median(median_result, 3)
+        final_exam_median = calculate_median(median_result, 4)
+        total_median = calculate_median(median_result, 5)
+        
+        # 构建返回数据
+        data = {
+            'homework_score': {
+                'avg': result[0] or 0,
+                'min': result[6] or 0,
+                'max': result[12] or 0,
+                'std': result[18] or 0,
+                'median': homework_median
+            },
+            'participation_score': {
+                'avg': result[1] or 0,
+                'min': result[7] or 0,
+                'max': result[13] or 0,
+                'std': result[19] or 0,
+                'median': participation_median
+            },
+            'unit_test1_score': {
+                'avg': result[2] or 0,
+                'min': result[8] or 0,
+                'max': result[14] or 0,
+                'std': result[20] or 0,
+                'median': unit_test1_median
+            },
+            'unit_test2_score': {
+                'avg': result[3] or 0,
+                'min': result[9] or 0,
+                'max': result[15] or 0,
+                'std': result[21] or 0,
+                'median': unit_test2_median
+            },
+            'final_exam_score': {
+                'avg': result[4] or 0,
+                'min': result[10] or 0,
+                'max': result[16] or 0,
+                'std': result[22] or 0,
+                'median': final_exam_median
+            },
+            'total_score': {
+                'avg': result[5] or 0,
+                'min': result[11] or 0,
+                'max': result[17] or 0,
+                'std': result[23] or 0,
+                'median': total_median
+            }
+        }
+        
+        return jsonify({
+            'code': 0,
+            'msg': '',
+            'data': data
+        })
+            
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'获取课程统计数据失败: {str(e)}'})
+
+@app.route('/student_detail')
+def student_detail():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('student_detail.html')
+
+# 获取学生排名API
+@app.route('/api/get_student_rankings', methods=['GET'])
+def get_student_rankings():
+    if 'username' not in session:
+        return jsonify({'code': 401, 'msg': '未登录'})
+    
+    try:
+        student_id = request.args.get('student_id')
+        course_name = request.args.get('course_name')
+        
+        if not student_id or not course_name:
+            return jsonify({'code': 400, 'msg': '缺少必要参数'})
+        
+        # 获取学生成绩
+        student_sql = """
+            SELECT 
+                homework_score, participation_score, unit_test1_score, 
+                unit_test2_score, final_exam_score, total_score
+            FROM student 
+            WHERE student_id = %s AND course_name = %s
+        """
+        student_result = db.selectone(student_sql, (student_id, course_name))
+        
+        if not student_result:
+            return jsonify({'code': 404, 'msg': '未找到该学生信息'})
+        
+        # 计算各指标的排名
+        rankings = {}
+        
+        # 平时作业排名
+        homework_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND homework_score > (
+                SELECT homework_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        homework_rank = db.selectone(homework_rank_sql, (course_name, student_id, course_name))
+        rankings['homework_score'] = homework_rank[0] if homework_rank else 0
+        
+        # 课堂参与排名
+        participation_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND participation_score > (
+                SELECT participation_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        participation_rank = db.selectone(participation_rank_sql, (course_name, student_id, course_name))
+        rankings['participation_score'] = participation_rank[0] if participation_rank else 0
+        
+        # 单元测试1排名
+        unit_test1_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND unit_test1_score > (
+                SELECT unit_test1_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        unit_test1_rank = db.selectone(unit_test1_rank_sql, (course_name, student_id, course_name))
+        rankings['unit_test1_score'] = unit_test1_rank[0] if unit_test1_rank else 0
+        
+        # 单元测试2排名
+        unit_test2_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND unit_test2_score > (
+                SELECT unit_test2_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        unit_test2_rank = db.selectone(unit_test2_rank_sql, (course_name, student_id, course_name))
+        rankings['unit_test2_score'] = unit_test2_rank[0] if unit_test2_rank else 0
+        
+        # 期末考试排名
+        final_exam_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND final_exam_score > (
+                SELECT final_exam_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        final_exam_rank = db.selectone(final_exam_rank_sql, (course_name, student_id, course_name))
+        rankings['final_exam_score'] = final_exam_rank[0] if final_exam_rank else 0
+        
+        # 总评成绩排名
+        total_rank_sql = """
+            SELECT COUNT(*) + 1
+            FROM student
+            WHERE course_name = %s AND total_score > (
+                SELECT total_score FROM student WHERE student_id = %s AND course_name = %s
+            )
+        """
+        total_rank = db.selectone(total_rank_sql, (course_name, student_id, course_name))
+        rankings['total_score'] = total_rank[0] if total_rank else 0
+        
+        # 获取班级总人数
+        total_count_sql = "SELECT COUNT(*) FROM student WHERE course_name = %s"
+        total_count_result = db.selectone(total_count_sql, (course_name,))
+        total_count = total_count_result[0] if total_count_result else 0
+        
+        # 计算百分比排名
+        for key in rankings:
+            if total_count > 0:
+                rankings[key] = {
+                    'rank': rankings[key],
+                    'total': total_count,
+                    'percentile': round((1 - (rankings[key] - 1) / total_count) * 100, 2)
+                }
+            else:
+                rankings[key] = {
+                    'rank': 0,
+                    'total': 0,
+                    'percentile': 0
+                }
+        
+        return jsonify({
+            'code': 0,
+            'msg': '',
+            'data': rankings
+        })
+            
+    except Exception as e:
+        return jsonify({'code': 500, 'msg': f'获取学生排名失败: {str(e)}'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5999) 

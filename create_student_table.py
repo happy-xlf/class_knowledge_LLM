@@ -19,9 +19,12 @@ CREATE TABLE IF NOT EXISTS student (
     gender VARCHAR(10) COMMENT '性别',
     student_id VARCHAR(20) COMMENT '学号',
     learning_style VARCHAR(50) COMMENT '学习风格',
-    regular_score FLOAT COMMENT '平时成绩',
-    quiz_score FLOAT COMMENT '测验成绩',
-    final_score FLOAT COMMENT '期末成绩',
+    homework_score FLOAT COMMENT '平时作业成绩',
+    participation_score FLOAT COMMENT '课堂参与成绩',
+    unit_test1_score FLOAT COMMENT '单元测试1成绩',
+    unit_test2_score FLOAT COMMENT '单元测试2成绩',
+    final_exam_score FLOAT COMMENT '期末考试成绩',
+    total_score FLOAT COMMENT '总评成绩',
     mastered_knowledge TEXT COMMENT '已掌握的知识点',
     course_name VARCHAR(100) COMMENT '课程名称'
 );
@@ -32,8 +35,12 @@ db.execute(create_table_sql)
 
 # 准备插入数据的SQL语句
 insert_sql = """
-INSERT INTO student (name, gender, student_id, learning_style, regular_score, quiz_score, final_score, mastered_knowledge, course_name)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+INSERT INTO student (
+    name, gender, student_id, learning_style, 
+    homework_score, participation_score, unit_test1_score, unit_test2_score,
+    final_exam_score, total_score, mastered_knowledge, course_name
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 """
 
 # 插入数据

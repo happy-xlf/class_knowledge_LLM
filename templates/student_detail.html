@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>学生详情</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../static/lib/layui/css/layui.css" rel="stylesheet">
+  <script src="../static/lib/layui/layui.js" charset="utf-8"></script>
+  <script type="text/javascript" src="../static/js/xadmin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+<div style="padding: 16px;">
+  <div class="layui-card">
+    <div class="layui-card-header">学生基本信息</div>
+    <div class="layui-card-body">
+      <table class="layui-table" lay-size="sm">
+        <colgroup>
+          <col width="150">
+          <col>
+          <col width="150">
+          <col>
+        </colgroup>
+        <tbody>
+          <tr>
+            <td>学号</td>
+            <td id="student_id"></td>
+            <td>姓名</td>
+            <td id="name"></td>
+          </tr>
+          <tr>
+            <td>性别</td>
+            <td id="gender"></td>
+            <td>学习风格</td>
+            <td id="learning_style"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">成绩信息</div>
+    <div class="layui-card-body">
+      <table class="layui-table" lay-size="sm">
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>分数</th>
+            <th>班级平均分</th>
+            <th>班级中位数</th>
+            <th>班级标准差</th>
+            <th>班级排名</th>
+          </tr>
+        </thead>
+        <tbody id="scoreTable">
+          <!-- 数据将由JavaScript动态生成 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">成绩分布图</div>
+    <div class="layui-card-body">
+      <div id="scoreChart" style="width: 100%; height: 400px;"></div>
+    </div>
+  </div>
+  
+  <div class="layui-card" style="margin-top: 20px;">
+    <div class="layui-card-header">成绩雷达图分析</div>
+    <div class="layui-card-body">
+      <div id="radarChart" style="width: 100%; height: 400px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+layui.use(['util'], function(){
+  var util = layui.util;
+  var $ = layui.jquery;
+  
+  // 获取URL参数
+  function getUrlParam(name) {
+    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+    var r = window.location.search.substr(1).match(reg);
+    if (r != null) return decodeURIComponent(r[2]); return null;
+  }
+  
+  // 获取学生ID
+  var studentId = getUrlParam('student_id');
+  if (!studentId) {
+    layer.msg('缺少学生ID参数');
+    return;
+  }
+  
+  // 获取学生详情
+  $.ajax({
+    url: '/api/get_student_detail',
+    type: 'GET',
+    data: { student_id: studentId },
+    success: function(res) {
+      if (res.code === 0) {
+        var student = res.data;
+        
+        // 更新基本信息
+        $('#student_id').text(student.student_id);
+        $('#name').text(student.name);
+        $('#gender').text(student.gender);
+        $('#learning_style').text(student.learning_style);
+        
+        // 获取课程统计数据
+        $.ajax({
+          url: '/api/get_course_statistics',
+          type: 'GET',
+          data: { course_name: student.course_name },
+          success: function(statsRes) {
+            if (statsRes.code === 0) {
+              var stats = statsRes.data;
+              
+              // 获取学生排名数据
+              $.ajax({
+                url: '/api/get_student_rankings',
+                type: 'GET',
+                data: { 
+                  student_id: studentId,
+                  course_name: student.course_name
+                },
+                success: function(rankRes) {
+                  if (rankRes.code === 0) {
+                    var rankings = rankRes.data;
+                    
+                    // 更新成绩表格
+                    updateScoreTable(student, stats, rankings);
+                    
+                    // 更新成绩分布图
+                    updateScoreChart(student, stats);
+                  } else {
+                    layer.msg('获取学生排名失败: ' + rankRes.msg);
+                    // 即使获取排名失败，也更新成绩表格和图表
+                    updateScoreTable(student, stats, {});
+                    updateScoreChart(student, stats);
+                  }
+                },
+                error: function() {
+                  layer.msg('获取学生排名失败，请检查网络连接');
+                  // 即使获取排名失败，也更新成绩表格和图表
+                  updateScoreTable(student, stats, {});
+                  updateScoreChart(student, stats);
+                }
+              });
+            } else {
+              layer.msg('获取课程统计数据失败: ' + statsRes.msg);
+            }
+          },
+          error: function() {
+            layer.msg('获取课程统计数据失败，请检查网络连接');
+          }
+        });
+      } else {
+        layer.msg('获取学生详情失败: ' + res.msg);
+      }
+    },
+    error: function() {
+      layer.msg('获取学生详情失败，请检查网络连接');
+    }
+  });
+  
+  // 更新成绩表格
+  function updateScoreTable(student, stats, rankings) {
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    var html = '';
+    indicators.forEach(function(item) {
+      var score = student[item.key] || 0;
+      var stat = stats[item.key];
+      var rank = rankings[item.key] || { rank: 0, total: 0, percentile: 0 };
+      
+      // 格式化排名显示
+      var rankDisplay = '未知';
+      if (rank.rank > 0 && rank.total > 0) {
+        // rankDisplay = rank.rank + '/' + rank.total + ' (' + rank.percentile + '%)';
+        rankDisplay = rank.rank + '/' + rank.total;
+      }
+      
+      html += '<tr>';
+      html += '<td>' + item.name + '</td>';
+      html += '<td>' + score.toFixed(2) + '</td>';
+      html += '<td>' + stat.avg.toFixed(2) + '</td>';
+      html += '<td>' + stat.median.toFixed(2) + '</td>';
+      html += '<td>' + stat.std.toFixed(2) + '</td>';
+      html += '<td>' + rankDisplay + '</td>';
+      html += '</tr>';
+    });
+    
+    $('#scoreTable').html(html);
+  }
+  
+  // 更新成绩分布图
+  function updateScoreChart(student, stats) {
+    var chartDom = document.getElementById('scoreChart');
+    var myChart = echarts.init(chartDom);
+    
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    var studentScores = [];
+    var avgScores = [];
+    var medianScores = [];
+    var categories = [];
+    
+    indicators.forEach(function(item) {
+      categories.push(item.name);
+      studentScores.push(student[item.key] || 0);
+      avgScores.push(stats[item.key].avg);
+      medianScores.push(stats[item.key].median);
+    });
+    
+    var option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      legend: {
+        data: ['学生成绩', '班级平均分', '班级中位数']
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: categories
+      },
+      yAxis: {
+        type: 'value',
+        name: '分数'
+      },
+      series: [
+        {
+          name: '学生成绩',
+          type: 'bar',
+          data: studentScores
+        },
+        {
+          name: '班级平均分',
+          type: 'line',
+          data: avgScores
+        },
+        {
+          name: '班级中位数',
+          type: 'line',
+          data: medianScores
+        }
+      ]
+    };
+    
+    myChart.setOption(option);
+    
+    // 更新雷达图
+    updateRadarChart(student, stats);
+  }
+  
+  // 更新雷达图
+  function updateRadarChart(student, stats) {
+    var chartDom = document.getElementById('radarChart');
+    var myChart = echarts.init(chartDom);
+    
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    // 准备雷达图数据
+    var indicator = [];
+    var studentData = [];
+    var avgData = [];
+    
+    indicators.forEach(function(item) {
+      indicator.push({
+        name: item.name,
+        max: 100 // 假设满分是100分
+      });
+      studentData.push(student[item.key] || 0);
+      avgData.push(stats[item.key].avg);
+    });
+    
+    var option = {
+      title: {
+        text: '学生成绩雷达图分析',
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item'
+      },
+      legend: {
+        data: ['学生成绩', '班级平均分'],
+        bottom: 0
+      },
+      radar: {
+        indicator: indicator,
+        radius: '65%',
+        center: ['50%', '50%']
+      },
+      series: [
+        {
+          name: '成绩分析',
+          type: 'radar',
+          data: [
+            {
+              value: studentData,
+              name: '学生成绩',
+              areaStyle: {
+                color: 'rgba(255, 99, 71, 0.3)'
+              },
+              lineStyle: {
+                color: 'rgba(255, 99, 71, 1)'
+              },
+              itemStyle: {
+                color: 'rgba(255, 99, 71, 1)'
+              }
+            },
+            {
+              value: avgData,
+              name: '班级平均分',
+              areaStyle: {
+                color: 'rgba(65, 105, 225, 0.3)'
+              },
+              lineStyle: {
+                color: 'rgba(65, 105, 225, 1)'
+              },
+              itemStyle: {
+                color: 'rgba(65, 105, 225, 1)'
+              }
+            }
+          ]
+        }
+      ]
+    };
+    
+    myChart.setOption(option);
+  }
+});
+</script>
+</body>
+</html> 

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>学情分析评估</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../static/lib/layui/css/layui.css" rel="stylesheet">
+  <script src="../static/lib/layui/layui.js" charset="utf-8"></script>
+  <script type="text/javascript" src="../static/js/xadmin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+<div style="padding: 16px;">
+  <!-- 课程选择 -->
+  <div class="layui-form" style="margin-bottom: 20px;">
+    <div class="layui-form-item">
+      <label class="layui-form-label">选择课程</label>
+      <div class="layui-input-inline">
+        <select name="course" lay-filter="courseSelect" id="courseSelect">
+          <option value="计算机基础">计算机基础</option>
+          <option value="数据结构">数据结构</option>
+          <option value="算法分析">算法分析</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分析内容tab -->
+  <div class="layui-tab layui-tab-brief" lay-filter="analysisTab">
+    <ul class="layui-tab-title">
+      <li class="layui-this">课程建模</li>
+      <li>学生建模</li>
+    </ul>
+    <div class="layui-tab-content">
+      <!-- 课程建模 -->
+      <div class="layui-tab-item layui-show">
+        <!-- 数据汇总表格 -->
+        <div class="layui-card">
+          <div class="layui-card-header">课程数据汇总</div>
+          <div class="layui-card-body">
+            <table class="layui-table" lay-size="sm">
+              <thead>
+                <tr>
+                  <th>指标</th>
+                  <th>平均分</th>
+                  <th>中位数</th>
+                  <th>标准差</th>
+                  <th>最小值</th>
+                  <th>最大值</th>
+                </tr>
+              </thead>
+              <tbody id="courseStatsTable">
+                <!-- 数据将由JavaScript动态生成 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- 成绩分布图 -->
+        <div class="layui-card" style="margin-top: 20px;">
+          <div class="layui-card-header">成绩分布图</div>
+          <div class="layui-card-body">
+            <div id="scoreDistributionChart" style="width: 100%; height: 400px;"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 学生建模 -->
+      <div class="layui-tab-item">
+        <table id="studentTable" lay-filter="studentTable"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 行工具模板 -->
+<script type="text/html" id="rowToolbar">
+  <a class="layui-btn layui-btn-xs" lay-event="viewDetail">查看详情</a>
+</script>
+
+<script>
+layui.use(['table', 'element', 'form', 'util'], function(){
+  var table = layui.table;
+  var element = layui.element;
+  var form = layui.form;
+  var util = layui.util;
+  var $ = layui.jquery;
+  
+  // 初始化课程建模数据
+  function initCourseModeling(courseName) {
+    // 获取课程统计数据
+    $.ajax({
+      url: '/api/get_course_statistics',
+      type: 'GET',
+      data: { course_name: courseName },
+      success: function(res) {
+        if (res.code === 0) {
+          // 更新数据汇总表格
+          updateCourseStatsTable(res.data);
+          // 更新成绩分布图
+          updateScoreDistributionChart(res.data);
+        } else {
+          layer.msg('获取课程统计数据失败: ' + res.msg);
+        }
+      },
+      error: function() {
+        layer.msg('获取课程统计数据失败，请检查网络连接');
+      }
+    });
+  }
+  
+  // 更新课程数据汇总表格
+  function updateCourseStatsTable(data) {
+    var html = '';
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    indicators.forEach(function(item) {
+      var stats = data[item.key];
+      html += '<tr>';
+      html += '<td>' + item.name + '</td>';
+      html += '<td>' + stats.avg.toFixed(2) + '</td>';
+      html += '<td>' + stats.median.toFixed(2) + '</td>';
+      html += '<td>' + stats.std.toFixed(2) + '</td>';
+      html += '<td>' + stats.min.toFixed(2) + '</td>';
+      html += '<td>' + stats.max.toFixed(2) + '</td>';
+      html += '</tr>';
+    });
+    
+    $('#courseStatsTable').html(html);
+  }
+  
+  // 更新成绩分布图
+  function updateScoreDistributionChart(data) {
+    var chartDom = document.getElementById('scoreDistributionChart');
+    var myChart = echarts.init(chartDom);
+    
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    var series = [];
+    indicators.forEach(function(item) {
+      var stats = data[item.key];
+      series.push({
+        name: item.name,
+        type: 'bar',
+        data: [stats.avg, stats.median, stats.min, stats.max]
+      });
+    });
+    
+    var option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      legend: {
+        data: indicators.map(item => item.name)
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: ['平均分', '中位数', '最小值', '最大值']
+      },
+      yAxis: {
+        type: 'value',
+        name: '分数'
+      },
+      series: series
+    };
+    
+    myChart.setOption(option);
+  }
+  
+  // 初始化学生表格
+  function initStudentTable(courseName) {
+    table.render({
+      elem: '#studentTable',
+      url: '/api/student_data?course_id=' + encodeURIComponent(courseName),
+      cols: [[
+        {field: 'student_id', title: '学号', width: 120, sort: true},
+        {field: 'name', title: '姓名', width: 100},
+        {field: 'gender', title: '性别', width: 80},
+        {field: 'learning_style', title: '学习风格', width: 120},
+        {field: 'homework_score', title: '平时作业', width: 130, sort: true},
+        {field: 'participation_score', title: '课堂参与', width: 130, sort: true},
+        {field: 'unit_test1_score', title: '单元测试1', width: 130, sort: true},
+        {field: 'unit_test2_score', title: '单元测试2', width: 130, sort: true},
+        {field: 'final_exam_score', title: '期末考试', width: 130, sort: true},
+        {field: 'total_score', title: '总评成绩', width: 130, sort: true},
+        {title: '操作', toolbar: '#rowToolbar', width: 350, align: 'right', fixed: 'right'}
+      ]],
+      page: true,
+      limit: 10,
+      limits: [10, 20, 50, 100]
+    });
+  }
+  
+  // 监听课程选择
+  form.on('select(courseSelect)', function(data) {
+    var courseName = data.value;
+    // 根据当前选中的tab页加载相应数据
+    var activeTab = $('.layui-tab-title .layui-this').index();
+    if (activeTab === 0) {
+      initCourseModeling(courseName);
+    } else {
+      initStudentTable(courseName);
+    }
+  });
+  
+  // 监听tab切换
+  element.on('tab(analysisTab)', function(data) {
+    var courseName = $('#courseSelect').val();
+    if (data.index === 0) {
+      initCourseModeling(courseName);
+    } else {
+      initStudentTable(courseName);
+    }
+  });
+  
+  // 监听行工具事件
+  table.on('tool(studentTable)', function(obj) {
+    var data = obj.data;
+    if (obj.event === 'viewDetail') {
+      // 查看学生详情
+      layer.open({
+        type: 2,
+        title: '学生详情 - ' + data.name,
+        shadeClose: true,
+        shade: 0.8,
+        area: ['80%', '90%'],
+        content: '/student_detail?student_id=' + data.student_id
+      });
+    }
+  });
+  
+  // 初始化页面
+  var courseName = $('#courseSelect').val();
+  initCourseModeling(courseName);
+});
+</script>
+</body>
+</html> 
