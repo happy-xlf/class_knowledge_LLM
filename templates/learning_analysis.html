@@ -65,6 +65,14 @@
             <div id="scoreDistributionChart" style="width: 100%; height: 400px;"></div>
           </div>
         </div>
+        
+        <!-- 学习风格雷达图 -->
+        <div class="layui-card" style="margin-top: 20px;">
+          <div class="layui-card-header">学习风格指数分析</div>
+          <div class="layui-card-body">
+            <div id="learningStyleRadarChart" style="width: 100%; height: 500px;"></div>
+          </div>
+        </div>
       </div>
       
       <!-- 学生建模 -->
@@ -107,6 +115,24 @@ layui.use(['table', 'element', 'form', 'util'], function(){
       },
       error: function() {
         layer.msg('获取课程统计数据失败，请检查网络连接');
+      }
+    });
+    
+    // 获取学习风格指标数据
+    $.ajax({
+      url: '/api/get_learning_style_metrics',
+      type: 'GET',
+      data: { course_name: courseName },
+      success: function(res) {
+        if (res.code === 0) {
+          // 更新学习风格雷达图
+          updateLearningStyleRadarChart(res.data);
+        } else {
+          layer.msg('获取学习风格指标数据失败: ' + res.msg);
+        }
+      },
+      error: function() {
+        layer.msg('获取学习风格指标数据失败，请检查网络连接');
       }
     });
   }
@@ -185,6 +211,72 @@ layui.use(['table', 'element', 'form', 'util'], function(){
       yAxis: {
         type: 'value',
         name: '分数'
+      },
+      series: series
+    };
+    
+    myChart.setOption(option);
+  }
+  
+  // 更新学习风格雷达图
+  function updateLearningStyleRadarChart(data) {
+    var chartDom = document.getElementById('learningStyleRadarChart');
+    var myChart = echarts.init(chartDom);
+    
+    // 定义指标
+    var indicators = [
+      { name: '平时作业', key: 'homework_score' },
+      { name: '课堂参与', key: 'participation_score' },
+      { name: '单元测试1', key: 'unit_test1_score' },
+      { name: '单元测试2', key: 'unit_test2_score' },
+      { name: '期末考试', key: 'final_exam_score' },
+      { name: '总评成绩', key: 'total_score' }
+    ];
+    
+    // 准备雷达图数据
+    var series = [];
+    var learningStyles = Object.keys(data);
+    
+    // 为每种学习风格生成一个系列
+    learningStyles.forEach(function(style, index) {
+      var styleData = data[style];
+      var values = indicators.map(item => styleData[item.key]);
+      
+      series.push({
+        name: style,
+        type: 'radar',
+        data: [{
+          value: values,
+          name: style,
+          areaStyle: {
+            opacity: 0.3
+          }
+        }]
+      });
+    });
+    
+    // 雷达图配置
+    var option = {
+      title: {
+        text: '不同学习风格的指标分析',
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item'
+      },
+      legend: {
+        data: learningStyles,
+        orient: 'vertical',
+        right: 10,
+        top: 'center'
+      },
+      radar: {
+        indicator: indicators.map(item => ({
+          name: item.name,
+          max: 100
+        })),
+        radius: '65%',
+        center: ['50%', '50%']
       },
       series: series
     };

@@ -9,3 +9,4 @@ dbutils
 requests==2.31.0
 pdfkit==1.0.0
 markdown==3.4.3
+openai

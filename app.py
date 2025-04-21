@@ -151,6 +151,8 @@ def get_student_data():
         return jsonify({'code': 401, 'msg': '未登录'})
     
     course_name = request.args.get('course_id', '计算机基础')
+    if course_name in ["1", "2", "3"]:
+        course_name = COURSES[course_name]
     
     # 从数据库获取学生数据
     sql = """
@@ -383,60 +385,7 @@ def get_learning_style_metrics():
             
     except Exception as e:
         return jsonify({'code': 500, 'msg': f'获取学习风格指标数据失败: {str(e)}'})
-
-# 获取所有学习风格的指标数据API
-@app.route('/api/get_all_learning_style_metrics', methods=['GET'])
-def get_all_learning_style_metrics():
-    if 'username' not in session:
-        return jsonify({'code': 401, 'msg': '未登录'})
     
-    try:
-        # 查询所有不重复的学习风格
-        sql_styles = "SELECT DISTINCT learning_style FROM student WHERE learning_style IS NOT NULL"
-        styles_result, _ = db.selectall(sql_styles)
-        
-        if not styles_result:
-            return jsonify({'code': 404, 'msg': '未找到学习风格数据'})
-        
-        learning_styles = [row[0] for row in styles_result]
-        result_data = {}
-        
-        # 对每种学习风格计算指标
-        for style in learning_styles:
-            sql = """
-                SELECT 
-                    AVG(homework_score) as homework_avg,
-                    AVG(participation_score) as participation_avg,
-                    AVG(unit_test1_score) as unit_test1_avg,
-                    AVG(unit_test2_score) as unit_test2_avg,
-                    AVG(final_exam_score) as final_exam_avg,
-                    AVG(total_score) as total_avg,
-                    COUNT(*) as student_count
-                FROM student 
-                WHERE learning_style = %s
-            """
-            result = db.selectone(sql, (style,))
-            
-            if result:
-                result_data[style] = {
-                    'homework_score': result[0] or 0,
-                    'participation_score': result[1] or 0,
-                    'unit_test1_score': result[2] or 0,
-                    'unit_test2_score': result[3] or 0,
-                    'final_exam_score': result[4] or 0,
-                    'total_score': result[5] or 0,
-                    'student_count': result[6] or 0
-                }
-        
-        return jsonify({
-            'code': 0,
-            'msg': '',
-            'data': result_data
-        })
-            
-    except Exception as e:
-        return jsonify({'code': 500, 'msg': f'获取所有学习风格指标数据失败: {str(e)}'})
-
 # 获取课程选项API
 @app.route('/api/get_courses', methods=['GET'])
 def get_courses():
