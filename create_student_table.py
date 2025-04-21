@@ -2,14 +2,14 @@ import pandas as pd
 from utils.mysqlhelper import MySqLHelper
 
 # 读取Excel文件
-df = pd.read_excel('data/模拟学生信息.xlsx')
-
+# df = pd.read_excel('data/模拟学生信息.xlsx')
+df = pd.read_csv('./data/student_data.csv')
 # 创建数据库连接
 db = MySqLHelper()
 
 # 删除表
 drop_sql = "DROP TABLE IF EXISTS student;"
-db.execute(drop_sql)
+# db.execute(drop_sql)
 
 # 创建表结构
 create_table_sql = """
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS student (
 """
 
 # 执行创建表的SQL语句
-db.execute(create_table_sql)
+# db.execute(create_table_sql)
 
 # 准备插入数据的SQL语句
 insert_sql = """
@@ -47,7 +47,7 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 for _, row in df.iterrows():
     # 添加课程名称列，这里假设课程名称为"高等数学"
     row_data = list(row)
-    print(row_data)
+    # print(row_data)
     db.insertone(insert_sql, tuple(row_data))
 
 # 获取所有数据

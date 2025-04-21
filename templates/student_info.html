@@ -118,7 +118,13 @@ layui.use(['table', 'element', 'form', 'util'], function(){
       {field:'mastered_knowledge', title: '已掌握知识点', width:500},
       {fixed: 'right', title:'操作', toolbar: '#rowToolbar'}
     ]],
-    page: true,
+    page: {
+      layout: ['count', 'prev', 'page', 'next', 'limit', 'skip'],
+      groups: 5,
+      first: '首页',
+      last: '尾页',
+      limit: [10, 20, 50, 100]
+    },
     toolbar: '#toolbarDemo', // 开启自定义工具栏
     defaultToolbar: ['filter', 'exports', 'print', { // 自定义工具栏
       title: '导出Excel',
@@ -269,7 +275,10 @@ layui.use(['table', 'element', 'form', 'util'], function(){
     // 根据课程切换表格数据
     var courseId = data.index + 1;
     table.reload('studentTable', {
-      url: '/api/student_data?course_id=' + courseId
+      url: '/api/student_data?course_id=' + courseId,
+      page: {
+        curr: 1 // 重新从第1页开始
+      }
     });
   });
   
@@ -284,23 +293,22 @@ layui.use(['table', 'element', 'form', 'util'], function(){
         var courseName = $('.layui-tab-title .layui-this').text();
         var exportData = [];
         
-        // 获取当前页数据
-        var currentData = table.cache['studentTable'];
-        if(currentData && currentData.length > 0) {
-          exportData = currentData;
-        } else {
-          // 如果没有当前页数据，则获取所有数据
-          $.ajax({
-            url: '/api/student_data',
-            type: 'GET',
-            async: false,
-            success: function(res) {
-              if(res.code === 0 && res.data) {
-                exportData = res.data;
-              }
+        // 获取所有数据（不分页）
+        $.ajax({
+          url: '/api/student_data',
+          type: 'GET',
+          data: {
+            course_id: $('.layui-tab-title .layui-this').index() + 1,
+            page: 1,
+            limit: 9999 // 设置一个足够大的数字，获取所有数据
+          },
+          async: false,
+          success: function(res) {
+            if(res.code === 0 && res.data) {
+              exportData = res.data;
             }
-          });
-        }
+          }
+        });
         
         // 准备Excel数据
         var excelData = [];
@@ -335,10 +343,26 @@ layui.use(['table', 'element', 'form', 'util'], function(){
         printContent += '<th>已掌握知识点</th>';
         printContent += '</tr>';
         
-        // 获取当前页数据
-        var currentData = table.cache['studentTable'];
-        if(currentData && currentData.length > 0) {
-          currentData.forEach(function(item) {
+        // 获取所有数据（不分页）
+        var printData = [];
+        $.ajax({
+          url: '/api/student_data',
+          type: 'GET',
+          data: {
+            course_id: $('.layui-tab-title .layui-this').index() + 1,
+            page: 1,
+            limit: 9999 // 设置一个足够大的数字，获取所有数据
+          },
+          async: false,
+          success: function(res) {
+            if(res.code === 0 && res.data) {
+              printData = res.data;
+            }
+          }
+        });
+        
+        if(printData && printData.length > 0) {
+          printData.forEach(function(item) {
             printContent += '<tr>';
             printContent += '<td>' + item.student_id + '</td>';
             printContent += '<td>' + item.name + '</td>';

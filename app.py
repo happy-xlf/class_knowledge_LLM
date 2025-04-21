@@ -154,7 +154,19 @@ def get_student_data():
     if course_name in ["1", "2", "3"]:
         course_name = COURSES[course_name]
     
-    # 从数据库获取学生数据
+    # 获取分页参数
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+    offset = (page - 1) * limit
+    
+    # 从数据库获取学生数据总数
+    count_sql = """
+        SELECT COUNT(*) 
+        FROM student 
+        WHERE course_name = %s
+    """
+    
+    # 从数据库获取学生数据（带分页）
     sql = """
         SELECT 
             student_id, name, gender, learning_style, 
@@ -162,10 +174,16 @@ def get_student_data():
             final_exam_score, total_score, mastered_knowledge, course_name
         FROM student 
         WHERE course_name = %s
+        LIMIT %s OFFSET %s
     """
     
     try:
-        result, count = db.selectall(sql, (course_name,))
+        # 获取总记录数
+        count_result = db.selectone(count_sql, (course_name,))
+        total_count = count_result[0] if count_result else 0
+        
+        # 获取分页数据
+        result, _ = db.selectall(sql, (course_name, limit, offset))
         
         # 将查询结果转换为前端需要的格式
         student_data = []
@@ -188,7 +206,7 @@ def get_student_data():
         return jsonify({
             'code': 0,
             'msg': '',
-            'count': count,
+            'count': total_count,
             'data': student_data
         })
     except Exception as e:

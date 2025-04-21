@@ -181,10 +181,18 @@ layui.use(['table', 'element', 'form', 'util'], function(){
     var series = [];
     indicators.forEach(function(item) {
       var stats = data[item.key];
+      // 对数值进行格式化，保留小数点后两位
+      var formattedData = [
+        parseFloat(stats.avg).toFixed(2),
+        parseFloat(stats.median).toFixed(2),
+        parseFloat(stats.min).toFixed(2),
+        parseFloat(stats.max).toFixed(2)
+      ];
+      
       series.push({
         name: item.name,
         type: 'bar',
-        data: [stats.avg, stats.median, stats.min, stats.max]
+        data: formattedData
       });
     });
     
@@ -193,6 +201,14 @@ layui.use(['table', 'element', 'form', 'util'], function(){
         trigger: 'axis',
         axisPointer: {
           type: 'shadow'
+        },
+        formatter: function(params) {
+          // 自定义提示框内容，确保显示两位小数
+          var result = '';
+          params.forEach(function(param) {
+            result += param.seriesName + ': ' + param.value + '<br/>';
+          });
+          return result;
         }
       },
       legend: {
@@ -240,7 +256,10 @@ layui.use(['table', 'element', 'form', 'util'], function(){
     // 为每种学习风格生成一个系列
     learningStyles.forEach(function(style, index) {
       var styleData = data[style];
-      var values = indicators.map(item => styleData[item.key]);
+      var values = indicators.map(item => {
+        // 对数值进行格式化，保留小数点后两位
+        return parseFloat(styleData[item.key]).toFixed(2);
+      });
       
       series.push({
         name: style,
@@ -262,7 +281,15 @@ layui.use(['table', 'element', 'form', 'util'], function(){
         left: 'center'
       },
       tooltip: {
-        trigger: 'item'
+        trigger: 'item',
+        formatter: function(params) {
+          // 自定义提示框内容，确保显示两位小数
+          var result = params.name + '<br/>';
+          params.data.value.forEach(function(value, index) {
+            result += indicators[index].name + ': ' + parseFloat(value).toFixed(2) + '<br/>';
+          });
+          return result;
+        }
       },
       legend: {
         data: learningStyles,
@@ -290,17 +317,17 @@ layui.use(['table', 'element', 'form', 'util'], function(){
       elem: '#studentTable',
       url: '/api/student_data?course_id=' + encodeURIComponent(courseName),
       cols: [[
-        {field: 'student_id', title: '学号', width: 120, sort: true},
+        {field: 'student_id', title: '学号', width: 110, sort: true},
         {field: 'name', title: '姓名', width: 100},
         {field: 'gender', title: '性别', width: 80},
-        {field: 'learning_style', title: '学习风格', width: 120},
-        {field: 'homework_score', title: '平时作业', width: 130, sort: true},
-        {field: 'participation_score', title: '课堂参与', width: 130, sort: true},
-        {field: 'unit_test1_score', title: '单元测试1', width: 130, sort: true},
-        {field: 'unit_test2_score', title: '单元测试2', width: 130, sort: true},
-        {field: 'final_exam_score', title: '期末考试', width: 130, sort: true},
-        {field: 'total_score', title: '总评成绩', width: 130, sort: true},
-        {title: '操作', toolbar: '#rowToolbar', width: 350, align: 'right', fixed: 'right'}
+        {field: 'learning_style', title: '学习风格', width: 110},
+        {field: 'homework_score', title: '平时作业', width: 110, sort: true},
+        {field: 'participation_score', title: '课堂参与', width: 110, sort: true},
+        {field: 'unit_test1_score', title: '单元测试1', width: 110, sort: true},
+        {field: 'unit_test2_score', title: '单元测试2', width: 110, sort: true},
+        {field: 'final_exam_score', title: '期末考试', width: 110, sort: true},
+        {field: 'total_score', title: '总评成绩', width: 110, sort: true},
+        {title: '操作', toolbar: '#rowToolbar', width: 100, align: 'right', fixed: 'right'}
       ]],
       page: true,
       limit: 10,

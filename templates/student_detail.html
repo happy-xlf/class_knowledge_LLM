@@ -226,9 +226,10 @@ layui.use(['util'], function(){
     
     indicators.forEach(function(item) {
       categories.push(item.name);
-      studentScores.push(student[item.key] || 0);
-      avgScores.push(stats[item.key].avg);
-      medianScores.push(stats[item.key].median);
+      // 对数值进行格式化，保留小数点后两位
+      studentScores.push(parseFloat(student[item.key] || 0).toFixed(2));
+      avgScores.push(parseFloat(stats[item.key].avg).toFixed(2));
+      medianScores.push(parseFloat(stats[item.key].median).toFixed(2));
     });
     
     var option = {
@@ -236,6 +237,14 @@ layui.use(['util'], function(){
         trigger: 'axis',
         axisPointer: {
           type: 'shadow'
+        },
+        formatter: function(params) {
+          // 自定义提示框内容，确保显示两位小数
+          var result = '';
+          params.forEach(function(param) {
+            result += param.seriesName + ': ' + param.value + '<br/>';
+          });
+          return result;
         }
       },
       legend: {
@@ -304,8 +313,9 @@ layui.use(['util'], function(){
         name: item.name,
         max: 100 // 假设满分是100分
       });
-      studentData.push(student[item.key] || 0);
-      avgData.push(stats[item.key].avg);
+      // 对数值进行格式化，保留小数点后两位
+      studentData.push(parseFloat(student[item.key] || 0).toFixed(2));
+      avgData.push(parseFloat(stats[item.key].avg).toFixed(2));
     });
     
     var option = {
@@ -314,7 +324,21 @@ layui.use(['util'], function(){
         left: 'center'
       },
       tooltip: {
-        trigger: 'item'
+        trigger: 'item',
+        formatter: function(params) {
+          // 自定义提示框内容，确保显示两位小数
+          var result = params.name + '<br/>';
+          if (params.name === '学生成绩') {
+            indicators.forEach(function(item, index) {
+              result += item.name + ': ' + studentData[index] + '<br/>';
+            });
+          } else if (params.name === '班级平均分') {
+            indicators.forEach(function(item, index) {
+              result += item.name + ': ' + avgData[index] + '<br/>';
+            });
+          }
+          return result;
+        }
       },
       legend: {
         data: ['学生成绩', '班级平均分'],
