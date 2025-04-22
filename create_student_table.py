@@ -9,7 +9,7 @@ db = MySqLHelper()
 
 # 删除表
 drop_sql = "DROP TABLE IF EXISTS student;"
-# db.execute(drop_sql)
+db.execute(drop_sql)
 
 # 创建表结构
 create_table_sql = """
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS student (
 """
 
 # 执行创建表的SQL语句
-# db.execute(create_table_sql)
+db.execute(create_table_sql)
 
 # 准备插入数据的SQL语句
 insert_sql = """
